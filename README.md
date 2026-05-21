@@ -4,18 +4,6 @@
 
 ![Скриншот](https://github.com/user-attachments/assets/bdae45a1-5faf-48f2-9a9a-5a2aa6735789)
 
-## Функции
-
-- просмотр, добавление, удаление отелей
-- поиск по названию/городу
-- сортировка по любому полю
-- фильтрация по вместимости
-- автоматическое добавление новых городов/названий
-
-## Технологии
-
-ASP.NET Core Web API (.NET 8), SQL Server, EF Core, HTML/CSS/JS, Fetch API.
-
 ## Запуск
 
 1. Укажите строку подключения в appsettings.json
@@ -25,7 +13,3 @@ ASP.NET Core Web API (.NET 8), SQL Server, EF Core, HTML/CSS/JS, Fetch API.
 ## Пояснительная записка
 
 [Скачать PDF](https://github.com/user-attachments/files/28122495/_._.401_2.pdf)
-
-## Автор
-
-Каргин Артём, группа ФИ401, НГУЭУ
