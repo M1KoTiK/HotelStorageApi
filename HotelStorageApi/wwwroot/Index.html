@@ -1,0 +1,332 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>База данных отелей</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #eef2f7;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1300px;
+            margin: auto;
+            background: white;
+            border-radius: 16px;
+            padding: 20px 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #1e3c72;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 8px;
+            flex: 2;
+        }
+
+        input, select, button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+            button:hover {
+                background: #0f2b4f;
+            }
+
+        .btn-danger {
+            background: #c0392b;
+        }
+
+            .btn-danger:hover {
+                background: #a82315;
+            }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+            .btn-success:hover {
+                background: #1e8449;
+            }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f0f2f5;
+            cursor: pointer;
+        }
+
+        tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        .range-panel {
+            background: #e8f0fe;
+            padding: 12px;
+            border-radius: 12px;
+            margin: 15px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            width: 400px;
+        }
+
+            .modal-content input {
+                width: 100%;
+                margin-bottom: 12px;
+            }
+
+        .footer-info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>База данных отелей</h1>
+
+        <div class="toolbar">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Поиск по названию или городу">
+                <button id="searchBtn">Поиск</button>
+                <button id="resetBtn">Сброс</button>
+            </div>
+            <div>
+                <select id="sortField">
+                    <option value="hotelname">Название</option>
+                    <option value="city">Город</option>
+                    <option value="capacity">Вместимость</option>
+                    <option value="price">Цена</option>
+                </select>
+                <select id="sortOrder">
+                    <option value="asc">▲ По возрастанию</option>
+                    <option value="desc">▼ По убыванию</option>
+                </select>
+                <button id="sortBtn">Сортировать</button>
+            </div>
+            <button id="addBtn" class="btn-success">Добавить отель</button>
+        </div>
+
+        <div class="range-panel">
+            <span>Вместимость от</span>
+            <input type="number" id="minCapacity" placeholder="мин" value="0">
+            <span>до</span>
+            <input type="number" id="maxCapacity" placeholder="макс" value="500">
+            <button id="countBtn">Подсчитать</button>
+            <span id="countResult"></span>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table id="hotelTable">
+                <thead>
+                    <tr><th>ID</th><th>Название отеля</th><th>Город</th><th>Вместимость</th><th>Цена (руб.)</th><th>Действие</th></tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+        <div class="footer-info">Всего отелей: <span id="totalCount">0</span></div>
+    </div>
+
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>Новый отель</h3>
+            <input type="text" id="hotelName" placeholder="Название отеля *">
+            <input type="text" id="city" placeholder="Город *">
+            <input type="number" id="capacity" placeholder="Вместимость *">
+            <input type="number" id="price" placeholder="Цена стандартного номера *">
+            <button id="saveHotelBtn">Сохранить</button>
+            <button id="closeModalBtn">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        const apiBase = '/api/hotels';
+        async function loadHotels(url = apiBase) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                const hotels = await response.json();
+                renderTable(hotels);
+                document.getElementById('totalCount').innerText = hotels.length;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось загрузить отели. Проверьте соединение с сервером.');
+            }
+        }
+
+        function renderTable(hotels) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            if (!hotels.length) {
+                const row = tbody.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 6;
+                cell.textContent = 'Нет данных';
+                cell.style.textAlign = 'center';
+                return;
+            }
+            hotels.forEach(hotel => {
+                const row = tbody.insertRow();
+                row.insertCell(0).innerText = hotel.id;
+                row.insertCell(1).innerText = hotel.hotelName;
+                row.insertCell(2).innerText = hotel.city;
+                row.insertCell(3).innerText = hotel.capacity;
+                row.insertCell(4).innerText = hotel.standardRoomPrice.toLocaleString() + ' ₽';
+                const delCell = row.insertCell(5);
+                const delBtn = document.createElement('button');
+                delBtn.innerText = 'Удалить';
+                delBtn.classList.add('btn-danger');
+                delBtn.onclick = () => deleteHotel(hotel.id);
+                delCell.appendChild(delBtn);
+            });
+            }
+
+        async function deleteHotel(id) {
+            if (!confirm('Удалить отель?')) return;
+            try {
+                const response = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Ошибка удаления');
+                loadHotels(); 
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось удалить отель');
+            }
+        }
+
+        document.getElementById('searchBtn').onclick = () => {
+            const query = document.getElementById('searchInput').value.trim();
+            if (query === '') {
+                loadHotels();
+            } else {
+                loadHotels(`${apiBase}/search?q=${encodeURIComponent(query)}`);
+            }
+        };
+
+        document.getElementById('resetBtn').onclick = () => {
+            document.getElementById('searchInput').value = '';
+            loadHotels();
+        };
+
+        document.getElementById('sortBtn').onclick = () => {
+            const field = document.getElementById('sortField').value;
+            const order = document.getElementById('sortOrder').value;
+            loadHotels(`${apiBase}/sort?field=${field}&order=${order}`);
+        };
+
+        document.getElementById('countBtn').onclick = async () => {
+            const min = parseInt(document.getElementById('minCapacity').value);
+            const max = parseInt(document.getElementById('maxCapacity').value);
+            if (isNaN(min) || isNaN(max)) {
+                alert('Введите корректные числа');
+                return;
+            }
+            try {
+                const response = await fetch(`${apiBase}/countByCapacity?min=${min}&max=${max}`);
+                const data = await response.json();
+                document.getElementById('countResult').innerText = `Найдено: ${data.count} отелей`;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось выполнить подсчёт');
+            }
+        };
+
+        const modal = document.getElementById('addModal');
+        document.getElementById('addBtn').onclick = () => modal.style.display = 'flex';
+        document.getElementById('closeModalBtn').onclick = () => modal.style.display = 'none';
+
+        document.getElementById('saveHotelBtn').onclick = async () => {
+            const hotelName = document.getElementById('hotelName').value.trim();
+            const city = document.getElementById('city').value.trim();
+            const capacity = parseInt(document.getElementById('capacity').value);
+            const price = parseFloat(document.getElementById('price').value);
+            if (!hotelName || !city || isNaN(capacity) || isNaN(price)) {
+                alert('Заполните все поля корректно');
+                return;
+            }
+            const newHotel = {
+                hotelName: hotelName,
+                city: city,
+                capacity: capacity,
+                standardRoomPrice: price
+            };
+            try {
+                const response = await fetch(apiBase, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newHotel)
+                });
+                if (!response.ok) throw new Error('Ошибка добавления');
+                modal.style.display = 'none';
+                document.getElementById('hotelName').value = '';
+                document.getElementById('city').value = '';
+                document.getElementById('capacity').value = '';
+                document.getElementById('price').value = '';
+                loadHotels();
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось добавить отель');
+            }
+        };
+        loadHotels();
+    </script>
+</body>
+</html>
