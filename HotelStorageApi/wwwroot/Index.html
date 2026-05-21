@@ -143,7 +143,6 @@
 <body>
     <div class="container">
         <h1>База данных отелей</h1>
-
         <div class="toolbar">
             <div class="search-box">
                 <input type="text" id="searchInput" placeholder="Поиск по названию или городу">
@@ -158,8 +157,8 @@
                     <option value="price">Цена</option>
                 </select>
                 <select id="sortOrder">
-                    <option value="asc">▲ По возрастанию</option>
-                    <option value="desc">▼ По убыванию</option>
+                    <option value="asc">По возрастанию</option>
+                    <option value="desc">По убыванию</option>
                 </select>
                 <button id="sortBtn">Сортировать</button>
             </div>
@@ -171,7 +170,7 @@
             <input type="number" id="minCapacity" placeholder="мин" value="0">
             <span>до</span>
             <input type="number" id="maxCapacity" placeholder="макс" value="500">
-            <button id="countBtn">Подсчитать</button>
+            <button id="countBtn">Подсчитать и отфильтровать</button>
             <span id="countResult"></span>
         </div>
 
@@ -200,13 +199,16 @@
 
     <script>
         const apiBase = '/api/hotels';
+        let allHotels = [];
+
         async function loadHotels(url = apiBase) {
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Ошибка загрузки данных');
-                const hotels = await response.json();
-                renderTable(hotels);
-                document.getElementById('totalCount').innerText = hotels.length;
+                allHotels = await response.json();
+                renderTable(allHotels);
+                document.getElementById('totalCount').innerText = allHotels.length;
+                document.getElementById('countResult').innerText = '';
             } catch (error) {
                 console.error('Ошибка:', error);
                 alert('Не удалось загрузить отели. Проверьте соединение с сервером.');
@@ -238,14 +240,14 @@
                 delBtn.onclick = () => deleteHotel(hotel.id);
                 delCell.appendChild(delBtn);
             });
-            }
+        }
 
         async function deleteHotel(id) {
             if (!confirm('Удалить отель?')) return;
             try {
                 const response = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Ошибка удаления');
-                loadHotels(); 
+                loadHotels();
             } catch (error) {
                 console.error('Ошибка:', error);
                 alert('Не удалось удалить отель');
@@ -254,11 +256,8 @@
 
         document.getElementById('searchBtn').onclick = () => {
             const query = document.getElementById('searchInput').value.trim();
-            if (query === '') {
-                loadHotels();
-            } else {
-                loadHotels(`${apiBase}/search?q=${encodeURIComponent(query)}`);
-            }
+            if (query === '') loadHotels();
+            else loadHotels(`${apiBase}/search?q=${encodeURIComponent(query)}`);
         };
 
         document.getElementById('resetBtn').onclick = () => {
@@ -272,21 +271,17 @@
             loadHotels(`${apiBase}/sort?field=${field}&order=${order}`);
         };
 
-        document.getElementById('countBtn').onclick = async () => {
+        document.getElementById('countBtn').onclick = () => {
             const min = parseInt(document.getElementById('minCapacity').value);
             const max = parseInt(document.getElementById('maxCapacity').value);
             if (isNaN(min) || isNaN(max)) {
                 alert('Введите корректные числа');
                 return;
             }
-            try {
-                const response = await fetch(`${apiBase}/countByCapacity?min=${min}&max=${max}`);
-                const data = await response.json();
-                document.getElementById('countResult').innerText = `Найдено: ${data.count} отелей`;
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось выполнить подсчёт');
-            }
+            const filtered = allHotels.filter(h => h.capacity >= min && h.capacity <= max);
+            renderTable(filtered);
+            document.getElementById('totalCount').innerText = filtered.length;
+            document.getElementById('countResult').innerText = `Найдено: ${filtered.length} отелей`;
         };
 
         const modal = document.getElementById('addModal');
