@@ -30,7 +30,7 @@ CREATE TABLE Hotels (
 );
 ```
 
-2. Укажите строку подключения в appsettings.json.
-3.Выполните Update-Database.
+2. Укажите строку подключения в appsettings.json.  
+3.Выполните Update-Database.  
 4.Запустите проект (F5).  
 
