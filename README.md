@@ -28,8 +28,7 @@ CREATE TABLE Hotels (
     Capacity INT NOT NULL,
     Price DECIMAL(10,2) NOT NULL
 );
-```
-
+```  
 2. Укажите строку подключения в appsettings.json.  
 3.Выполните Update-Database.  
 4.Запустите проект (F5).  
