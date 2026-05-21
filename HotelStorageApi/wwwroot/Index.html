@@ -170,7 +170,7 @@
             <input type="number" id="minCapacity" placeholder="мин" value="0">
             <span>до</span>
             <input type="number" id="maxCapacity" placeholder="макс" value="500">
-            <button id="countBtn">Подсчитать и отфильтровать</button>
+            <button id="filterCapacityBtn">Применить фильтр по вместимости</button>
             <span id="countResult"></span>
         </div>
 
@@ -199,20 +199,66 @@
 
     <script>
         const apiBase = '/api/hotels';
-        let allHotels = [];
+        let allHotels = []; 
 
-        async function loadHotels(url = apiBase) {
+        let searchQuery = '';
+        let minCapacity = 0;
+        let maxCapacity = 500;
+        let sortField = 'hotelname';
+        let sortOrder = 'asc';
+
+        async function loadAllHotels() {
             try {
-                const response = await fetch(url);
+                const response = await fetch(apiBase);
                 if (!response.ok) throw new Error('Ошибка загрузки данных');
                 allHotels = await response.json();
-                renderTable(allHotels);
-                document.getElementById('totalCount').innerText = allHotels.length;
-                document.getElementById('countResult').innerText = '';
+                applyFiltersAndRender();
             } catch (error) {
                 console.error('Ошибка:', error);
-                alert('Не удалось загрузить отели. Проверьте соединение с сервером.');
+                alert('Не удалось загрузить отели.');
             }
+        }
+
+        function applyFiltersAndRender() {
+            let filtered = [...allHotels];
+
+            if (searchQuery.trim() !== '') {
+                const lowerQuery = searchQuery.toLowerCase();
+                filtered = filtered.filter(h =>
+                    h.hotelName.toLowerCase().includes(lowerQuery) ||
+                    h.city.toLowerCase().includes(lowerQuery)
+                );
+            }
+
+            filtered = filtered.filter(h => h.capacity >= minCapacity && h.capacity <= maxCapacity);
+
+            filtered.sort((a, b) => {
+                let valA, valB;
+                switch (sortField) {
+                    case 'hotelname':
+                        valA = a.hotelName;
+                        valB = b.hotelName;
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    case 'city':
+                        valA = a.city;
+                        valB = b.city;
+                        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    case 'capacity':
+                        valA = a.capacity;
+                        valB = b.capacity;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    case 'price':
+                        valA = a.standardRoomPrice;
+                        valB = b.standardRoomPrice;
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    default:
+                        return 0;
+                }
+            });
+
+            renderTable(filtered);
+            document.getElementById('totalCount').innerText = filtered.length;
+            document.getElementById('countResult').innerText = `Найдено: ${filtered.length}`;
         }
 
         function renderTable(hotels) {
@@ -247,7 +293,7 @@
             try {
                 const response = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
                 if (!response.ok) throw new Error('Ошибка удаления');
-                loadHotels();
+                await loadAllHotels(); 
             } catch (error) {
                 console.error('Ошибка:', error);
                 alert('Не удалось удалить отель');
@@ -255,33 +301,41 @@
         }
 
         document.getElementById('searchBtn').onclick = () => {
-            const query = document.getElementById('searchInput').value.trim();
-            if (query === '') loadHotels();
-            else loadHotels(`${apiBase}/search?q=${encodeURIComponent(query)}`);
+            searchQuery = document.getElementById('searchInput').value;
+            applyFiltersAndRender();
         };
 
         document.getElementById('resetBtn').onclick = () => {
+            searchQuery = '';
+            minCapacity = 0;
+            maxCapacity = 500;
+            sortField = 'hotelname';
+            sortOrder = 'asc';
+
             document.getElementById('searchInput').value = '';
-            loadHotels();
+            document.getElementById('minCapacity').value = '0';
+            document.getElementById('maxCapacity').value = '500';
+            document.getElementById('sortField').value = 'hotelname';
+            document.getElementById('sortOrder').value = 'asc';
+            applyFiltersAndRender();
         };
 
         document.getElementById('sortBtn').onclick = () => {
-            const field = document.getElementById('sortField').value;
-            const order = document.getElementById('sortOrder').value;
-            loadHotels(`${apiBase}/sort?field=${field}&order=${order}`);
+            sortField = document.getElementById('sortField').value;
+            sortOrder = document.getElementById('sortOrder').value;
+            applyFiltersAndRender();
         };
 
-        document.getElementById('countBtn').onclick = () => {
+        document.getElementById('filterCapacityBtn').onclick = () => {
             const min = parseInt(document.getElementById('minCapacity').value);
             const max = parseInt(document.getElementById('maxCapacity').value);
             if (isNaN(min) || isNaN(max)) {
                 alert('Введите корректные числа');
                 return;
             }
-            const filtered = allHotels.filter(h => h.capacity >= min && h.capacity <= max);
-            renderTable(filtered);
-            document.getElementById('totalCount').innerText = filtered.length;
-            document.getElementById('countResult').innerText = `Найдено: ${filtered.length} отелей`;
+            minCapacity = min;
+            maxCapacity = max;
+            applyFiltersAndRender();
         };
 
         const modal = document.getElementById('addModal');
@@ -315,13 +369,14 @@
                 document.getElementById('city').value = '';
                 document.getElementById('capacity').value = '';
                 document.getElementById('price').value = '';
-                loadHotels();
+                await loadAllHotels(); 
             } catch (error) {
                 console.error('Ошибка:', error);
                 alert('Не удалось добавить отель');
             }
         };
-        loadHotels();
+
+        loadAllHotels();
     </script>
 </body>
 </html>
